@@ -1,88 +1,101 @@
 package org.hyperskill;
 
-
 import java.util.*;
 
 class Switcher<T>{
     private final List<T> items;
-    private Iterator<T> iterator;
-    private T currentElement;
+    private int index = 0;
 
     public Switcher(List<T> items){
         this.items = items;
-        this.iterator = items.iterator();
     }
 
     public T getValue() {
-        if (!iterator.hasNext()) {
-            reset();
-        }
-        return iterator.next();
+        return items.get(index);
     }
 
-    public void reset() {
-        iterator = items.iterator();
+    public void goNext(){
+        index = (index + 1) % items.size(); // Move to the next element cyclically
     }
 }
 
 class Main {
-    private static final String boardRegex = "^[XO_]{9}$";
     private static final String correctFormat = "^[1-3] [1-3]$";
     private static final String outOfBoundsRegex = "[1-3 ]+";
     private static final String numbersRegex = "[0-9 ]+";
 
     public static void main(String[] args) {
-
-        System.out.print("Enter the cells: ");
-        Scanner scanner = new Scanner(System.in);
-        String boardString = scanner.nextLine();
-        if(!boardString.matches(boardRegex)) {
-            System.out.println("wrong input");
-            // continue
-        }
-        List<List<Character>> board = constructBoard(boardString);
+        List<List<Character>> board = constructBoard("_________");
+        Switcher<Character> moveSwitcher = new Switcher<>(Arrays.asList('X', 'O'));
         printBoard(board);
-        String initialState = determineOutcome(board);
-        if(!"Game not finished".equals(initialState)){
-            System.out.println(initialState);
-            return;
-        }
-        boolean wrongCommand = true;
-        String coordinates = "";
-        int x = -1;
-        int y = -1;
-        while(wrongCommand){
-            System.out.print("Enter the coordinates: ");
-            coordinates = scanner.nextLine();
-            if(!coordinates.matches(numbersRegex)){
-                System.out.println("You should enter numbers!");
-                continue;
+        boolean gameContinue = true;
+        do{
+            Scanner scanner = new Scanner(System.in);
+            String coordinates;
+            Character move = moveSwitcher.getValue();
+            if(move == 'X'){ // player move
+                System.out.print("Enter the coordinates: ");
+                coordinates = scanner.nextLine();
+                if(!validateUserMove(coordinates, board)){
+                    continue;
+                }
             }
-            if(!coordinates.matches(outOfBoundsRegex)){
-                System.out.println("Coordinates should be from 1 to 3!");
-                continue;
+            else{ // computer move
+                System.out.println("Making move level \"easy\"");
+                coordinates = generateAIMove(board);
             }
-            x = coordinates.charAt(0) - 48 - 1;
-            y = coordinates.charAt(2) - 48 - 1;
-            if(board.get(x).get(y) != '_'){
-                System.out.println("This cell is occupied! Choose another one!");
-                continue;
+            int x = coordinates.charAt(0) - 48 - 1;
+            int y = coordinates.charAt(2) - 48 - 1;
+            board.get(x).set(y, move);
+            printBoard(board);
+            String outcome = determineOutcome(board);
+            if(outcome.contains("wins") || outcome.contains("Draw")){
+                System.out.println(outcome);
+                gameContinue = false;
             }
-            if(coordinates.matches(correctFormat)){
-                wrongCommand = false;
-            }
-        }
-
-        Character move = determineFirstMove(boardString);
-        Character secondMove = determineFirstSecondMove(move);
-        Switcher<Character> moveSwitcher = new Switcher<>(Arrays.asList(move, secondMove));
-        board.get(x).set(y, moveSwitcher.getValue());
-        printBoard(board);
-
-        String outcome = determineOutcome(board);
-        System.out.println(outcome);
+            moveSwitcher.goNext();
+        }while(gameContinue);
 
     } // main end
+
+    private static boolean validateUserMove(String coordinates, List<List<Character>> board){
+        if(!coordinates.matches(numbersRegex)){
+            System.out.println("You should enter numbers!");
+            return false;
+        }
+        if(!coordinates.matches(outOfBoundsRegex)){
+            System.out.println("Coordinates should be from 1 to 3!");
+            return false;
+        }
+        int x = coordinates.charAt(0) - 48 - 1;
+        int y = coordinates.charAt(2) - 48 - 1;
+        if(board.get(x).get(y) != '_'){
+            System.out.println("This cell is occupied! Choose another one!");
+            return false;
+        }
+        if(coordinates.matches(correctFormat)){
+            return true;
+        }
+        return false;
+    }
+
+    private static String generateAIMove(List<List<Character>> board) {
+        List<List<Integer>> emptyCells = new ArrayList<>();
+        for(int r = 0; r < board.size(); r++){
+            List<Character> row = board.get(r);
+            for(int c = 0; c < row.size(); c++){
+                if(board.get(r).get(c) == '_'){
+                    emptyCells.add(List.of(r + 1, c + 1));
+                }
+            }
+        }
+        if(emptyCells.isEmpty()){
+            return "";
+        }
+        Random rnd = new Random();
+        List<Integer> move = emptyCells.get(rnd.nextInt(emptyCells.size()));
+        return String.format("%d %d", move.getFirst(), move.getLast());
+    }
 
     private static String determineOutcome(List<List<Character>> board) {
         String outcome = "Game not finished";
@@ -128,9 +141,6 @@ class Main {
         // anti diagonal check
         counter = 1;
         for(int i = 0; i < board.size() - 1; i++){
-            if(board.get(i).getLast() == '_'){
-                break;
-            }
             if(board.get(i).get(board.size() - 1 - i) != '_' && board.get(i).get(board.size() - 1 - i) == board.get(i + 1).get(board.size() - 1 -1 -i)){
                 counter++;
             }
