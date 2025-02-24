@@ -4,18 +4,18 @@ import java.util.*;
 
 class Player{
     private final Character moveSymbol;
-    private final boolean isAI;
+    private boolean isAI;
     private final String level;
+    private static final List<String> levels = List.of("easy", "medium", "hard");
 
     public Player(Character moveSymbol, String level) {
         this.moveSymbol = moveSymbol;
         this.level = level;
-        if("easy".equals(level)){
-            this.isAI = true;
-        }
-        else{
-            this.isAI = false;
-        }
+        levels.stream()
+                .filter(l -> l.equals(level))
+                .findFirst()
+                .ifPresentOrElse(l -> this.isAI = true,
+                                () -> this.isAI = false);
     }
 
     public Character getMoveSymbol() {
@@ -84,7 +84,7 @@ class Main {
                 Player currentPlayer = playerSwitcher.getValue();
                 if(currentPlayer.isAI()){ // AI move
                     System.out.printf("Making move level \"%s\"\n", currentPlayer.getLevel());
-                    coordinates = generateAIMove(board);
+                    coordinates = generateAIMove(board, currentPlayer);
                 }
                 else{ //player move
                     System.out.print("Enter the coordinates: ");
@@ -134,7 +134,7 @@ class Main {
         return false;
     }
 
-    private static String generateAIMove(List<List<Character>> board) {
+    private static String generateAIMove(List<List<Character>> board, Player AI) {
         List<List<Integer>> emptyCells = new ArrayList<>();
         for(int r = 0; r < board.size(); r++){
             List<Character> row = board.get(r);
@@ -147,9 +147,86 @@ class Main {
         if(emptyCells.isEmpty()){
             return "";
         }
+        if(AI.getLevel().equals("easy")){
+            Random rnd = new Random();
+            List<Integer> move = emptyCells.get(rnd.nextInt(emptyCells.size()));
+            return String.format("%d %d", move.getFirst(), move.getLast());
+        }
+        // look for a winning cell
+        String winningMove = generateTacticalMove(emptyCells, AI, "winning", board);
+        if(!winningMove.isEmpty()){
+            return winningMove;
+        }
+        // look for a blocking cell
+        String blockingMove = generateTacticalMove(emptyCells, AI, "blocking", board);
+        if(!blockingMove.isEmpty()){
+            return blockingMove;
+        }
         Random rnd = new Random();
         List<Integer> move = emptyCells.get(rnd.nextInt(emptyCells.size()));
         return String.format("%d %d", move.getFirst(), move.getLast());
+    }
+
+    private static String generateTacticalMove(List<List<Integer>> emptyCells, Player AI, String tactic, List<List<Character>> board) {
+        Character moveSymbol;
+        if("winning".equals(tactic)){
+            moveSymbol = AI.getMoveSymbol();
+        }
+        else{
+            moveSymbol = AI.getMoveSymbol() == 'X' ? 'O' : 'X';
+        }
+        List<Integer> coordinates = new ArrayList<>();
+        // look for an appropriate board cell from empty cells
+        // horizontal search
+        for(List<Integer> emptyCell : emptyCells){
+            int x = emptyCell.getFirst() - 1;
+            int y = emptyCell.getLast() - 1;
+            long symbolCount = board.get(x).stream().filter(c -> c == moveSymbol).count();
+            if(symbolCount == board.size() - 1){
+                coordinates.add(x + 1);
+                coordinates.add(y + 1);
+                return String.format("%d %d", coordinates.getFirst(), coordinates.getLast());
+            }
+        }
+        // vertical search
+        for(List<Integer> emptyCell : emptyCells){
+            int x = emptyCell.getFirst() - 1;
+            int y = emptyCell.getLast() - 1;
+            int counter = 0;
+            for(int i = 0; i < board.size(); i++){
+                if(board.get(i).get(y) == moveSymbol){
+                    counter++;
+                }
+            }
+            if(counter == board.size() - 1){
+                coordinates.add(x + 1);
+                coordinates.add(y + 1);
+                return String.format("%d %d", coordinates.getFirst(), coordinates.getLast());
+            }
+        }
+        // main diagonal search
+        for(List<Integer> emptyCell : emptyCells){
+            int x = emptyCell.getFirst() - 1;
+            int y = emptyCell.getLast() - 1;
+            int mainDiagonalCounter = 0;
+            int antiDiagonalCounter = 0;
+            if (x == y || x + y == board.size() - 1) { // Only check relevant diagonals
+                for (int i = 0; i < board.size(); i++) {
+                    if (x == y && board.get(i).get(i) == moveSymbol) { // Check main diagonal
+                        mainDiagonalCounter++;
+                    }
+                    if (x + y == board.size() - 1 && board.get(i).get(board.size() - 1 - i) == moveSymbol) { // Check anti-diagonal
+                        antiDiagonalCounter++;
+                    }
+                }
+                if (mainDiagonalCounter == board.size() - 1 || antiDiagonalCounter == board.size() - 1) {
+                    coordinates.add(x + 1);
+                    coordinates.add(y + 1);
+                    return String.format("%d %d", coordinates.getFirst(), coordinates.getLast());
+                }
+            }
+        }
+        return "";
     }
 
     private static String determineOutcome(List<List<Character>> board) {
@@ -209,18 +286,6 @@ class Main {
             outcome = "Draw";
         }
         return outcome;
-    }
-
-    private static Character determineFirstSecondMove(Character move) {
-        return 'X' == move ? 'O' : 'X';
-    }
-
-    private static Character determineFirstMove(String boardString) {
-        long xCount = boardString.chars().filter(ch -> ch == 'X').count();
-        long oCount = boardString.chars().filter(ch -> ch == 'O').count();
-
-        return xCount > oCount ? 'O' : 'X';
-
     }
 
     private static List<List<Character>> constructBoard(String boardString){
