@@ -2,6 +2,35 @@ package org.hyperskill;
 
 import java.util.*;
 
+class Player{
+    private final Character moveSymbol;
+    private final boolean isAI;
+    private final String level;
+
+    public Player(Character moveSymbol, String level) {
+        this.moveSymbol = moveSymbol;
+        this.level = level;
+        if("easy".equals(level)){
+            this.isAI = true;
+        }
+        else{
+            this.isAI = false;
+        }
+    }
+
+    public Character getMoveSymbol() {
+        return moveSymbol;
+    }
+
+    public boolean isAI() {
+        return this.isAI;
+    }
+
+    public String getLevel(){
+        return this.level;
+    }
+}
+
 class Switcher<T>{
     private final List<T> items;
     private int index = 0;
@@ -23,37 +52,63 @@ class Main {
     private static final String correctFormat = "^[1-3] [1-3]$";
     private static final String outOfBoundsRegex = "[1-3 ]+";
     private static final String numbersRegex = "[0-9 ]+";
+    private static final String inputCommandRegex = "^start [a-zA-Z]+ [a-zA-Z]+$";
 
     public static void main(String[] args) {
-        List<List<Character>> board = constructBoard("_________");
-        Switcher<Character> moveSwitcher = new Switcher<>(Arrays.asList('X', 'O'));
-        printBoard(board);
-        boolean gameContinue = true;
+        // user input for game settings
+        boolean correctCommand = false;
+        String inputCommand;
         do{
             Scanner scanner = new Scanner(System.in);
+            System.out.print("Input command: ");
+            inputCommand = scanner.nextLine();
+            if("exit".equals(inputCommand)){
+                break;
+            }
+            if(inputCommand.matches(inputCommandRegex)){
+                correctCommand = true;
+            }
+            else{
+                System.out.println("Bad parameters!");
+            }
+        }while(!correctCommand);
+
+        // generated players
+        String[] parameters = inputCommand.split(" ");
+        Player player1 = new Player('X', parameters[1]);
+        Player player2 = new Player('O', parameters[2]);
+        Switcher<Player> playerSwitcher = new Switcher<>(List.of(player1, player2));
+
+        // generate board and start the game
+        List<List<Character>> board = constructBoard("_________");
+        printBoard(board);
+        boolean gameContinue = true;
+        Scanner scanner = new Scanner(System.in);
+        do{
             String coordinates;
-            Character move = moveSwitcher.getValue();
-            if(move == 'X'){ // player move
+            Player currentPlayer = playerSwitcher.getValue();
+            if(currentPlayer.isAI()){ // AI move
+                System.out.printf("Making move level \"%s\"\n", currentPlayer.getLevel());
+                coordinates = generateAIMove(board);
+            }
+            else{ //player move
                 System.out.print("Enter the coordinates: ");
                 coordinates = scanner.nextLine();
                 if(!validateUserMove(coordinates, board)){
                     continue;
                 }
             }
-            else{ // computer move
-                System.out.println("Making move level \"easy\"");
-                coordinates = generateAIMove(board);
-            }
+            // correct move has been generated, continue to play it
             int x = coordinates.charAt(0) - 48 - 1;
             int y = coordinates.charAt(2) - 48 - 1;
-            board.get(x).set(y, move);
+            board.get(x).set(y, currentPlayer.getMoveSymbol());
             printBoard(board);
             String outcome = determineOutcome(board);
             if(outcome.contains("wins") || outcome.contains("Draw")){
                 System.out.println(outcome);
                 gameContinue = false;
             }
-            moveSwitcher.goNext();
+            playerSwitcher.goNext();
         }while(gameContinue);
 
     } // main end
