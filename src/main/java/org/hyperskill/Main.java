@@ -56,60 +56,60 @@ class Main {
 
     public static void main(String[] args) {
         // user input for game settings
-        boolean correctCommand = false;
         String inputCommand;
         do{
             Scanner scanner = new Scanner(System.in);
             System.out.print("Input command: ");
             inputCommand = scanner.nextLine();
             if("exit".equals(inputCommand)){
-                break;
+                continue;
             }
-            if(inputCommand.matches(inputCommandRegex)){
-                correctCommand = true;
-            }
-            else{
+            if(!inputCommand.matches(inputCommandRegex)){
                 System.out.println("Bad parameters!");
+                continue;
             }
-        }while(!correctCommand);
+            // generated players
+            String[] parameters = inputCommand.split(" ");
+            Player player1 = new Player('X', parameters[1]);
+            Player player2 = new Player('O', parameters[2]);
+            Switcher<Player> playerSwitcher = new Switcher<>(List.of(player1, player2));
 
-        // generated players
-        String[] parameters = inputCommand.split(" ");
-        Player player1 = new Player('X', parameters[1]);
-        Player player2 = new Player('O', parameters[2]);
-        Switcher<Player> playerSwitcher = new Switcher<>(List.of(player1, player2));
-
-        // generate board and start the game
-        List<List<Character>> board = constructBoard("_________");
-        printBoard(board);
-        boolean gameContinue = true;
-        Scanner scanner = new Scanner(System.in);
-        do{
-            String coordinates;
-            Player currentPlayer = playerSwitcher.getValue();
-            if(currentPlayer.isAI()){ // AI move
-                System.out.printf("Making move level \"%s\"\n", currentPlayer.getLevel());
-                coordinates = generateAIMove(board);
-            }
-            else{ //player move
-                System.out.print("Enter the coordinates: ");
-                coordinates = scanner.nextLine();
-                if(!validateUserMove(coordinates, board)){
-                    continue;
-                }
-            }
-            // correct move has been generated, continue to play it
-            int x = coordinates.charAt(0) - 48 - 1;
-            int y = coordinates.charAt(2) - 48 - 1;
-            board.get(x).set(y, currentPlayer.getMoveSymbol());
+            // generate board
+            List<List<Character>> board = constructBoard("_________");
             printBoard(board);
-            String outcome = determineOutcome(board);
-            if(outcome.contains("wins") || outcome.contains("Draw")){
-                System.out.println(outcome);
-                gameContinue = false;
-            }
-            playerSwitcher.goNext();
-        }while(gameContinue);
+
+            // start the current game loop
+            String coordinates;
+            do{
+                Player currentPlayer = playerSwitcher.getValue();
+                if(currentPlayer.isAI()){ // AI move
+                    System.out.printf("Making move level \"%s\"\n", currentPlayer.getLevel());
+                    coordinates = generateAIMove(board);
+                }
+                else{ //player move
+                    System.out.print("Enter the coordinates: ");
+                    coordinates = scanner.nextLine();
+                    if("exit".equals(coordinates)){
+                        inputCommand = "exit";
+                        continue;
+                    }
+                    if(!validateUserMove(coordinates, board)){
+                        continue;
+                    }
+                }
+                // correct move has been generated, continue to play it
+                int x = coordinates.charAt(0) - 48 - 1;
+                int y = coordinates.charAt(2) - 48 - 1;
+                board.get(x).set(y, currentPlayer.getMoveSymbol());
+                printBoard(board);
+                String outcome = determineOutcome(board);
+                if(outcome.contains("wins") || outcome.contains("Draw")){
+                    System.out.println(outcome);
+                    coordinates = "exit";
+                }
+                playerSwitcher.goNext();
+            }while (!coordinates.equals("exit")); // current game loop
+        }while (!inputCommand.equals("exit")); // all games loop
 
     } // main end
 
