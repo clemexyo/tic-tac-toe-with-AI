@@ -134,8 +134,9 @@ class Main {
         // determine the AI's move symbol to maximize it and its opponent's symbol to minimize it.
         char myMove = currentPlayer.getMoveSymbol();
         char enemyMove = currentPlayer.getMoveSymbol() == 'X' ? 'O' : 'X';
+        Map<Character, Integer> aiScores = Map.of(myMove, 10, enemyMove, -10, 'D', 0);
 
-        int bestScore = Integer.MAX_VALUE;
+        int bestScore = Integer.MIN_VALUE;
         String move = "";
 
         for (int r = 0; r < board.size(); r++) {
@@ -143,11 +144,11 @@ class Main {
                 if (board.get(r).get(c) == '_') { // Spot available
                     board.get(r).set(c, myMove);
 
-                    int score = minimax(board, 0, false, enemyMove); // after making my move, minimize enemy move
+                    int score = minimax(board, 0, false, enemyMove, aiScores); // after making my move, minimize enemy move
 
                     board.get(r).set(c, '_'); // Undo move
 
-                    if (score < bestScore) {
+                    if (score > bestScore) {
                         bestScore = score;
                         move = (r + 1) + " " + (c + 1);
                     }
@@ -157,23 +158,23 @@ class Main {
         return move;
     }
 
-    private static int minimax(List<List<Character>> board, int depth, boolean isMaximizing, Character currentSymbol) {
+    private static int minimax(List<List<Character>> board, int depth, boolean isMaximizing, Character currentSymbol, Map<Character, Integer> aiScores) {
         String currentState = determineOutcome(board);
         if (currentState.contains("wins")) {
-            return scores.get(currentState.charAt(0)) - depth; // Encourage quick wins
+            return aiScores.get(currentState.charAt(0)) - depth; // Encourage quick wins
         }
         if (currentState.equals("Draw")) {
-            return scores.get('D') - depth; // Encourage quicker draws
+            return aiScores.get('D') - depth; // Encourage quicker draws
         }
 
         int bestScore = isMaximizing ? Integer.MIN_VALUE : Integer.MAX_VALUE;
-        char enemySymbol = currentSymbol == 'X' ? 'O' : 'X';
+        char nextSymbol = currentSymbol == 'X' ? 'O' : 'X';
 
         for (int r = 0; r < board.size(); r++) {
             for (int c = 0; c < board.getFirst().size(); c++) {
                 if (board.get(r).get(c) == '_') {
                     board.get(r).set(c, currentSymbol);
-                    int score = minimax(board, depth + 1, !isMaximizing, enemySymbol);
+                    int score = minimax(board, depth + 1, !isMaximizing, nextSymbol, aiScores);
                     board.get(r).set(c, '_'); // Undo move
                     bestScore = isMaximizing ? Math.max(score, bestScore) : Math.min(score, bestScore);
                 }
@@ -183,6 +184,13 @@ class Main {
     }
 
     private static String generateEasyLevelMove(List<List<Character>> board, Player currentPlayer) {
+        List<List<Integer>> emptyCells = getEmptyCells(board);
+        Random rnd = new Random();
+        List<Integer> move = emptyCells.get(rnd.nextInt(emptyCells.size()));
+        return String.format("%d %d", move.getFirst(), move.getLast());
+    }
+
+    private static List<List<Integer>> getEmptyCells(List<List<Character>> board) {
         List<List<Integer>> emptyCells = new ArrayList<>();
         for(int r = 0; r < board.size(); r++){
             List<Character> row = board.get(r);
@@ -192,9 +200,7 @@ class Main {
                 }
             }
         }
-        Random rnd = new Random();
-        List<Integer> move = emptyCells.get(rnd.nextInt(emptyCells.size()));
-        return String.format("%d %d", move.getFirst(), move.getLast());
+        return emptyCells;
     }
 
     private static boolean validateUserMove(String coordinates, List<List<Character>> board){
@@ -219,15 +225,7 @@ class Main {
     }
 
     private static String generateMediumAIMove(List<List<Character>> board, Player AI) {
-        List<List<Integer>> emptyCells = new ArrayList<>();
-        for(int r = 0; r < board.size(); r++){
-            List<Character> row = board.get(r);
-            for(int c = 0; c < row.size(); c++){
-                if(board.get(r).get(c) == '_'){
-                    emptyCells.add(List.of(r + 1, c + 1));
-                }
-            }
-        }
+        List<List<Integer>> emptyCells = getEmptyCells(board);
         if(emptyCells.isEmpty()){
             return "";
         }
@@ -392,71 +390,3 @@ class Main {
     }
 
 }
-
-    /*private static String generateHardLevelMove(List<List<Character>> board, Player currentPlayer) {
-        char nextPlayerMove;
-        if(currentPlayer.getMoveSymbol() == 'X') {
-            nextPlayerMove = 'O';
-        }
-        else{
-            nextPlayerMove = 'X';
-        }
-        Switcher<Character> tempPlayerSwitcher = new Switcher<>(List.of(currentPlayer.getMoveSymbol(), nextPlayerMove));
-        int bestScore = Integer.MIN_VALUE;
-        String move = "";
-        for(int r = 0; r < board.size(); r++){
-            for(int c = 0; c < board.getFirst().size(); c++){
-                if(board.get(r).get(c) == '_'){ // the spot is available, find the best move for it
-                    board.get(r).set(c, currentPlayer.getMoveSymbol());
-                    int score = minimax(board, 0, false, tempPlayerSwitcher);
-                    board.get(r).set(c, '_');
-                    if(score > bestScore){
-                        bestScore = score;
-                        move = String.format("%d %d", r+1, c+1);
-                    }
-                }
-            }
-        }
-        return move;
-    }*/
-
-
-    /*private static int minimax(List<List<Character>> board, int dept, boolean isMaximizing, Switcher<Character> tempPlayerSwitcher) {
-        String currentState = determineOutcome(board);
-        if(currentState.contains("wins")){
-            return scores.get(currentState.charAt(0)) - dept;
-        }
-        if(currentState.equals("Draw")){
-            return scores.get('D') - dept;
-        }
-        if(isMaximizing) {
-            int bestScore = Integer.MIN_VALUE;
-            for (int r = 0; r < board.size(); r++) {
-                for (int c = 0; c < board.getFirst().size(); c++) {
-                    if(board.get(r).get(c) == '_'){
-                        board.get(r).set(c, tempPlayerSwitcher.getValue());
-                        tempPlayerSwitcher.goNext();
-                        int score = minimax(board, dept+1, false, tempPlayerSwitcher);
-                        bestScore = Math.max(score, bestScore);
-                        board.get(r).set(c, '_');
-                    }
-                }
-            }
-            return bestScore;
-        }
-        else{
-            int bestScore = Integer.MAX_VALUE;
-            for (int r = 0; r < board.size(); r++) {
-                for (int c = 0; c < board.getFirst().size(); c++) {
-                    if(board.get(r).get(c) == '_'){
-                        tempPlayerSwitcher.goNext();
-                        board.get(r).set(c, tempPlayerSwitcher.getValue());
-                        int score = minimax(board, dept+1, true, tempPlayerSwitcher);
-                        bestScore = Math.min(score, bestScore);
-                        board.get(r).set(c, '_');
-                    }
-                }
-            }
-            return bestScore;
-        }
-    }*/
